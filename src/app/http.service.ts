@@ -7,7 +7,7 @@ import {
 import { TransferList, Bid } from './Model/modelos.model';
 import { tap, catchError } from 'rxjs/operators';
 import { throwError, Observable } from 'rxjs';
-import { Auction, AuctionResponse } from './Model/listAuction.model';
+import { Auction, AuctionResponse, ListSearchData } from './Model/listAuction.model';
 import { PinEventResponse, PinEvent } from './Model/pinEvent.model';
 import { Item } from './Model/item.model';
 import { Credits } from './Model/credits.model';
@@ -35,35 +35,26 @@ export class HttpService {
       .pipe(catchError(this.handleError));
   }
 
-  getTransferList(
-    sID: string,
-    start: number,
-    num: number,
-    type: string,
-    nat: number,
-    maskedDefId: number,
-    pos: string,
-    micr: number,
-    macr: number,
-    minb: number,
-    maxb: number
-  ): Observable<TransferList> {
+  getTransferList(listSearchData: ListSearchData): Observable<TransferList> {
     const url = this.montarUrl(
-      start,
-      num,
-      type,
-      nat,
-      maskedDefId,
-      pos,
-      micr,
-      macr,
-      minb,
-      maxb
+      listSearchData.start,
+      listSearchData.num,
+      listSearchData.type,
+      listSearchData.nat,
+      listSearchData.cat,
+      listSearchData.maskedDefId,
+      listSearchData.lev,
+      listSearchData.leag,
+      listSearchData.pos,
+      listSearchData.micr,
+      listSearchData.macr,
+      listSearchData.minb,
+      listSearchData.maxb
     );
 
     const httpOptions = {
       headers: new HttpHeaders({
-        'X-UT-SID': sID
+        'X-UT-SID': listSearchData.sId
       })
     };
 
@@ -73,12 +64,68 @@ export class HttpService {
       .pipe(catchError(this.handleError));
   }
 
+  comparePrice(sId: string, start: number, definitionId: number): Observable<TransferList> {
+    const url = `${this.urlFixa}transfermarket?start=${start}&num=21&type=player&definitionId=${definitionId}`;
+
+    const httpOptions = {
+      headers: new HttpHeaders({
+        'X-UT-SID': sId
+      })
+    };
+
+    // now returns an Observable of Config
+    return this.http
+      .get<TransferList>(url, httpOptions)
+      .pipe(catchError(this.handleError));
+  }
+
+  // getTransferList(
+  //   sID: string,
+  //   start: number,
+  //   num: number,
+  //   type: string,
+  //   nat: number,
+  //   maskedDefId: number,
+  //   pos: string,
+  //   micr: number,
+  //   macr: number,
+  //   minb: number,
+  //   maxb: number
+  // ): Observable<TransferList> {
+  //   const url = this.montarUrl(
+  //     start,
+  //     num,
+  //     type,
+  //     nat,
+  //     maskedDefId,
+  //     pos,
+  //     micr,
+  //     macr,
+  //     minb,
+  //     maxb
+  //   );
+
+  //   const httpOptions = {
+  //     headers: new HttpHeaders({
+  //       'X-UT-SID': sID
+  //     })
+  //   };
+
+  //   // now returns an Observable of Config
+  //   return this.http
+  //     .get<TransferList>(url, httpOptions)
+  //     .pipe(catchError(this.handleError));
+  // }
+
   private montarUrl(
     start: number,
     num: number,
     type: string,
     nat: number,
+    cat: string,
     maskedDefId: number,
+    lev: string,
+    leag: number,
     pos: string,
     micr: number,
     macr: number,
@@ -86,9 +133,7 @@ export class HttpService {
     maxb: number
   ) {
     let urlProvisoria = '';
-    if (start !== 0) {
-      urlProvisoria = urlProvisoria + `start=${start}&`;
-    }
+    urlProvisoria = urlProvisoria + `start=${start}&`;
 
     if (num !== 0) {
       urlProvisoria = urlProvisoria + `num=${num}&`;
@@ -102,8 +147,20 @@ export class HttpService {
       urlProvisoria = urlProvisoria + `nat=${nat}&`;
     }
 
+    if (cat !== '') {
+      urlProvisoria = urlProvisoria + `cat=${cat}&`;
+    }
+
     if (maskedDefId !== 0) {
       urlProvisoria = urlProvisoria + `maskedDefId=${maskedDefId}&`;
+    }
+
+    if (lev !== '') {
+      urlProvisoria = urlProvisoria + `lev=${lev}&`;
+    }
+
+    if (leag !== 0) {
+      urlProvisoria = urlProvisoria + `leag=${leag}&`;
     }
 
     if (pos !== '') {

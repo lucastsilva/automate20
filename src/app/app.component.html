@@ -5,6 +5,9 @@
   </h1>
 </div>
 <div>
+  <button (click)="SearchConsumables()">Buscar consumables</button>
+</div>
+<div>
   Crédito: {{credits}} <button (click)="AtualizarCredito()">Atualizar</button>
 </div>
 <div>
@@ -15,6 +18,11 @@
 <button (click)="pausar()">Pausar!</button>
 <form [formGroup]="searchForm" (ngSubmit)="Executar(searchForm.value)">
   
+  <select formControlName="type" (change)="onChangeType($event)">
+    <option disabled>Selecione o tipode consulta</option>
+    <option *ngFor="let type of typeList">{{type}}</option>
+  </select>
+
   <label>
     sID:
     <input type="text" formControlName="sId">
@@ -34,6 +42,16 @@
     ID Jogador:
     <input type="text" formControlName="maskedDefId">
   </label>
+
+  <label>
+    League:
+    <input type="text" formControlName="leag">
+  </label>
+
+  <select *ngIf="typeSelected == 'position'" formControlName="posList" [ngModel]="positionList" name="positionList" (change)="onChangeSetMaxBuyValue($event)">
+    <option *ngFor="let pos of positionList">{{pos.pos}}</option>
+  </select>
+
 
 
   <button type="submit" [disabled]="!searchForm.valid">Executar!</button>

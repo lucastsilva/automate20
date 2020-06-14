@@ -4,7 +4,7 @@ import { HttpService } from './http.service';
 import { TransferList, Bid } from './Model/modelos.model';
 import { FormGroup, FormControl } from '@angular/forms';
 import { Subscription, interval, Observable } from 'rxjs';
-import { Auction, AuctionResponse } from './Model/listAuction.model';
+import { Auction, AuctionResponse, ListSearchData, BuyNowPlayerPrices } from './Model/listAuction.model';
 import { map } from 'rxjs/operators';
 import { NumberSymbol } from '@angular/common';
 import { Item } from './Model/item.model';
@@ -16,23 +16,43 @@ import { Item } from './Model/item.model';
 })
 export class AppComponent implements OnInit, OnDestroy {
   title = 'automate';
-  start = 0;
-  num = 21;
-  type = 'player';
-  nat = 0;
-  maskedDefId = 0;
-  pos = '';
-  micr = 0; // MIN BID
-  macr = 0; // MAX BID
-  minb = 0; // MIN BUY NOW
-  maxb = 0; // MAX BUY NOW
+  positionList = [{
+    pos: 'CM-CAM',
+    valor: 500
+  },
+  {
+    pos: 'CM-CDM',
+    valor: 700
+  },
+  {
+    pos: 'CDM-CM',
+    valor: 1000
+  },
+  {
+    pos: 'CAM-CF',
+    valor: 2200
+  },
+  {
+    pos: 'CF-CAM',
+    valor: 2200
+  },
+  {
+    pos: 'ST-CF',
+    valor: 500
+  }];
+  typeList = ['player', 'position'];
+  typeSelected = 'player';
+
   resultInScreen = '';
   timeInterval$: Observable<number>;
   sub: Subscription;
+  sub2: Subscription;
 
   credits = 0;
 
   listaJogadoresComprados: string[] = [];
+  listBuyNowPrice: number[] = [];
+  buyNowPlayerPrices: BuyNowPlayerPrices[] = [];
 
   searchForm: FormGroup;
 
@@ -46,8 +66,11 @@ export class AppComponent implements OnInit, OnDestroy {
     this.searchForm = new FormGroup({
       sId: new FormControl(''),
       pos: new FormControl(''),
-      maxb: new FormControl(''),
-      maskedDefId: new FormControl('')
+      maxb: new FormControl(0),
+      maskedDefId: new FormControl(0),
+      leag: new FormControl(0),
+      type: new FormControl('player'),
+      posList: new FormControl(''),
     });
   }
 
@@ -59,34 +82,51 @@ export class AppComponent implements OnInit, OnDestroy {
   Executar(form) {
     this.tentativas = 0;
     this.jogadoresComprados = 0;
-    const intervalo = 5000;
+    const intervalo = 15000;
     const timeInterval$ = interval(intervalo);
     this.totalInterval = 0;
 
     if (form.maxb !== '' && form.pos !== '') {
       console.log('start');
       this.sub = timeInterval$.subscribe(() => {
-        if (this.totalInterval <= 6000000) {
+        if (this.totalInterval <= 600000000) {
           this.totalInterval = this.totalInterval + intervalo;
           this.tentativas++;
+
+          const listSearchData: ListSearchData = {
+            sId: form.sId,
+            start: 0,
+            num: 21,
+            type: form.type,
+            nat: 0,
+            cat: '',
+            maskedDefId: form.maskedDefId,
+            lev: '',
+            leag: form.leag,
+            pos: form.pos.toUpperCase(),
+            micr: 0,
+            macr: 0,
+            minb: 0,
+            maxb: form.maxb
+          };
+
           this.httpService
-            .getTransferList(form.sId, this.start, this.num, this.type, this.nat, form.maskedDefId, form.pos.toUpperCase(), this.micr,
-              this.macr, this.minb, form.maxb)
-            .subscribe(
+            .getTransferList(listSearchData).subscribe(
               (res: TransferList) => {
                 this.httpService.pinEvents(form.sId).subscribe();
                 if (res.auctionInfo === []) {
                   this.resultInScreen = 'Nenhum resultado encontrado';
                 }
+
                 this.ComprarJogadores(form.sId, res);
                 this.resultInScreen = JSON.stringify(res);
               },
               err => {
                 this.resultInScreen = err;
-                this.pausar();
+                this.pausarConsumables();
                 console.log('finish');
               }
-            );
+          );
         } else {
           this.ngOnDestroy();
         }
@@ -94,6 +134,140 @@ export class AppComponent implements OnInit, OnDestroy {
       return;
     }
     this.resultInScreen = 'Preencha todos os campos';
+  }
+
+  SearchConsumables() {
+    const listSearchData: ListSearchData = {
+      sId: this.searchForm.value.sId,
+      start: 0,
+      num: 21,
+      type: 'training',
+      nat: 0,
+      cat: 'position',
+      maskedDefId: this.searchForm.value.maskedDefId,
+      lev: 'gold',
+      leag: this.searchForm.value.leag,
+      pos: this.searchForm.value.pos.toUpperCase(),
+      micr: 0,
+      macr: 0,
+      minb: 0,
+      maxb: this.searchForm.value.maxb
+    };
+
+    const intervalo = 5000;
+    const timeInterval$ = interval(intervalo);
+    this.sub2 = timeInterval$.subscribe(() => {
+      this.httpService
+      .getTransferList(listSearchData).subscribe(
+        (res: TransferList) => {
+          this.httpService.pinEvents(this.searchForm.value.sId).subscribe();
+          if (res.auctionInfo === []) {
+            this.resultInScreen = 'Nenhum resultado encontrado';
+          }
+
+          this.ComprarJogadores(this.searchForm.value.sId, res);
+          this.resultInScreen = JSON.stringify(res);
+        },
+        err => {
+          this.resultInScreen = err;
+          this.pausar();
+          console.log('finish');
+        });
+    });
+    return;
+  }
+
+  ConsultaGenerica(form) {
+
+    const listSearchData: ListSearchData = {
+      sId: form.sId,
+      start: 0,
+      num: 21,
+      type: form.type,
+      nat: 0,
+      cat: '',
+      maskedDefId: form.maskedDefId,
+      lev: '',
+      leag: form.leag,
+      pos: form.pos.toUpperCase(),
+      micr: 0,
+      macr: 0,
+      minb: 0,
+      maxb: form.maxb
+    };
+
+    // Consulta genérica, de todos os jogadores
+    this.PesquisarJogadores(listSearchData).then((genericSearch: TransferList) => {
+      genericSearch.auctionInfo.forEach(search => {
+          listSearchData.maskedDefId = search.itemData.id;
+
+          // Consulta por jogador
+          this.httpService.comparePrice(form.sId, 0, search.itemData.resourceId)
+          .subscribe((playerSearch: TransferList) => {
+            playerSearch.auctionInfo.forEach(player => {
+              this.listBuyNowPrice.push(player.buyNowPrice);
+            });
+          });
+
+          // Passa a página para pegar dados do buyNow
+          this.httpService.comparePrice(form.sId, 20, search.itemData.resourceId)
+          .subscribe((playerSearch: TransferList) => {
+            playerSearch.auctionInfo.forEach(player => {
+              this.listBuyNowPrice.push(player.buyNowPrice);
+            });
+          });
+
+          // Passa mais uma vez a página para pegar dados do buyNow
+          this.httpService.comparePrice(form.sId, 40, search.itemData.resourceId)
+          .subscribe((playerSearch: TransferList) => {
+            playerSearch.auctionInfo.forEach(player => {
+              this.listBuyNowPrice.push(player.buyNowPrice);
+            });
+          });
+        });
+    }).catch(err => {
+
+    }).finally(() => {
+        // Agrupar o array e preços
+        for (const bnp of this.listBuyNowPrice) {
+          let entryFound = false;
+
+          for (const item of this.buyNowPlayerPrices) {
+            if (item.valor === bnp) {
+              item.qtd++;
+              entryFound = true;
+              break;
+            } else {
+              this.buyNowPlayerPrices.push({
+                valor: bnp,
+                qtd: 1
+              });
+            }
+          }
+        }
+        console.log(this.buyNowPlayerPrices);
+    });
+  }
+
+  PesquisarJogadores(listSearchData: ListSearchData): Promise<TransferList> {
+    return new Promise(resolve => {
+      this.httpService
+      .getTransferList(listSearchData)
+      .subscribe(
+        (res: TransferList) => {
+          this.httpService.pinEvents(listSearchData.sId).subscribe();
+          if (res.auctionInfo === []) {
+            this.resultInScreen = 'Nenhum resultado encontrado';
+          }
+          resolve(res);
+        },
+        err => {
+          this.resultInScreen = err;
+          this.pausar();
+          console.log('finish');
+        }
+      );
+    });
   }
 
   ComprarJogadores(sId: string, transferList: TransferList) {
@@ -108,6 +282,9 @@ export class AppComponent implements OnInit, OnDestroy {
                 this.AtualizarCredito();
                 this.ListarJogador(sId, res);
               }
+          },
+          err => {
+            this.resultInScreen = err;
           });
       }
     });
@@ -192,8 +369,19 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   pausar() {
-    this.totalInterval = 6000000;
-    this.ngOnDestroy();
+    this.totalInterval = 600000000;
+    console.log('finish');
+    if (this.sub !== undefined) {
+      this.sub.unsubscribe();
+    }
+  }
+
+  pausarConsumables() {
+    this.totalInterval = 600000000;
+    console.log('finish');
+    if (this.sub2 !== undefined) {
+      this.sub2.unsubscribe();
+    }
   }
 
   ngOnDestroy() {
@@ -201,5 +389,20 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.sub !== undefined) {
       this.sub.unsubscribe();
     }
+    if (this.sub2 !== undefined) {
+      this.sub2.unsubscribe();
+    }
+  }
+
+  onChangeType(event) {
+    this.typeSelected = event.target.value;
+  }
+
+  onChangeSetMaxBuyValue(event) {
+    console.log(event);
+    this.searchForm.patchValue({
+      pos: event.target.value,
+      maxb: this.positionList.filter(p => p.pos === event.target.value)[0].valor
+    });
   }
 }
